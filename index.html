@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Depth Map Viewer</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/5.3.0/pixi.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    h1 {
+      margin-top: 20px;
+    }
+
+    #controls {
+      margin: 20px 0;
+    }
+
+    #test_app {
+      width: 600px;
+      height: 400px;
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <h1>3D Depth Map Viewer</h1>
+
+  <div id="controls">
+    <label>
+      Original Image (Path):
+      <input type="file" id="originalImage" accept="image/*">
+    </label>
+    <br><br>
+    <label>
+      Depth Map (Path):
+      <input type="file" id="depthImage" accept="image/*">
+    </label>
+    <br><br>
+    <button id="renderButton">Render 3D View</button>
+  </div>
+
+  <div id="test_app"></div>
+
+  <script>
+    // Function to render 3D view from original image and depth map
+    function render3Dbox(base64Image, base64Depth) {
+      const IMG_WIDTH = 600;  // Canvas width
+      const IMG_HEIGHT = 400; // Canvas height
+      const SCALE_FACTOR = 25; // Depth scale factor
+
+      // Initialize PIXI application
+      const app = new PIXI.Application({
+        width: IMG_WIDTH,
+        height: IMG_HEIGHT
+      });
+
+      // Attach PIXI canvas to the container
+      const container = document.getElementById("test_app");
+      container.innerHTML = ''; // Clear previous content
+      container.appendChild(app.view);
+
+      // Add original image as sprite
+      const img = PIXI.Sprite.from(base64Image);
+      img.width = IMG_WIDTH;
+      img.height = IMG_HEIGHT;
+      app.stage.addChild(img);
+
+      // Add depth map as sprite
+      const depthMap = PIXI.Sprite.from(base64Depth);
+      depthMap.width = IMG_WIDTH;
+      depthMap.height = IMG_HEIGHT;
+      app.stage.addChild(depthMap);
+
+      // Create displacement filter using depth map
+      const displacementFilter = new PIXI.filters.DisplacementFilter(depthMap);
+      app.stage.filters = [displacementFilter];
+
+      // Add interactivity to modify the displacement effect
+      container.addEventListener("mousemove", (e) => {
+        const rect = container.getBoundingClientRect();
+        displacementFilter.scale.x = (IMG_WIDTH / 2 - (e.clientX - rect.left)) / SCALE_FACTOR;
+        displacementFilter.scale.y = (IMG_HEIGHT / 2 - (e.clientY - rect.top)) / SCALE_FACTOR;
+      });
+    }
+
+    // Convert file to Base64
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = (error) => reject(error);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // Event listener for the "Render 3D View" button
+    document.getElementById("renderButton").addEventListener("click", async () => {
+      const originalImageFile = document.getElementById("originalImage").files[0];
+      const depthImageFile = document.getElementById("depthImage").files[0];
+
+      if (originalImageFile && depthImageFile) {
+        try {
+          const base64Image = await fileToBase64(originalImageFile);
+          const base64Depth = await fileToBase64(depthImageFile);
+
+          // Render 3D view using Base64 images
+          render3Dbox(base64Image, base64Depth);
+        } catch (error) {
+          alert("Error converting images to Base64: " + error.message);
+        }
+      } else {
+        alert("Please select both the Original Image and Depth Map files.");
+      }
+    });
+  </script>
+</body>
+</html>
